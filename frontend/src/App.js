@@ -36,7 +36,7 @@ const getActionText = (alert) => {
             const price = alert.details.new_price;
             return `Markdown to $${typeof price === 'number' ? price.toFixed(2) : 'N/A'}`;
         case 'hold':
-            return 'Hold Stock (Not expiring soon)';
+            return 'Hold Stock';
         default:
             return 'No action specified';
     }
@@ -46,31 +46,35 @@ const getActionText = (alert) => {
 const AlertsCard = ({ alerts, pulsate }) => {
     const groupedAlerts = alerts.reduce((acc, alert) => {
         const date = new Date(alert.date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-        if (!acc[date]) {
-            acc[date] = [];
-        }
+        if (!acc[date]) acc[date] = [];
         acc[date].push(alert);
         return acc;
     }, {});
-
     const sortedDates = Object.keys(groupedAlerts).sort((a, b) => new Date(b) - new Date(a));
 
     return (
         <div className={`grid-card alerts-card ${pulsate === 'alerts' ? 'pulsate' : ''}`}>
-            <h2>Actionable Alerts</h2>
+            <h2>Actionable Alerts (Manager's Co-Pilot)</h2>
             {sortedDates.length > 0 ? sortedDates.map(date => (
                 <div key={date}>
                     <h3 style={{ padding: '10px 0', backgroundColor: '#f0f2f5', textAlign: 'center', borderRadius: '4px', margin: '1rem 0' }}>
                         Alerts Generated for {date}
                     </h3>
                     <table>
-                        <thead><tr><th>Product</th><th>Type</th><th>Recommended Action</th><th>Details</th></tr></thead>
+                        {/* <<< CHANGE: ADDED "REASON (WHY?)" HEADER >>> */}
+                        <thead><tr><th>Product</th><th>Type</th><th>Recommended Action</th><th>Reason (Why?)</th><th>Details</th></tr></thead>
                         <tbody>
                             {groupedAlerts[date].map(alert => (
                                 <tr key={alert._id} className={getAlertClassName(alert)}>
                                     <td>{alert.product_id}</td>
                                     <td style={{ fontWeight: 'bold' }}>{alert.type.toUpperCase()}</td>
                                     <td><strong>{getActionText(alert)}</strong></td>
+                                    {/* <<< CHANGE: RENDER THE LIST OF REASONS >>> */}
+                                    <td className="reason-cell">
+                                        <ul>
+                                            {(alert.reason || []).map((r, i) => <li key={i}>{r}</li>)}
+                                        </ul>
+                                    </td>
                                     <td>Forecast: {alert.details.forecasted_demand}, Stock: {alert.details.current_stock}</td>
                                 </tr>
                             ))}
@@ -117,6 +121,8 @@ function App() {
     const [pulsate, setPulsate] = useState('');
     const [dayCounter, setDayCounter] = useState(1);
 
+    const [simulationStartDate] = useState(new Date());
+
     const showNotification = (message, type = 'info', duration = 3000) => {
         setNotification(prev => ({ message, type, key: prev.key + 1 }));
     };
@@ -131,7 +137,7 @@ function App() {
             const [kpiRes, dataRes, alertsRes] = await Promise.all([
                 axios.get(`${API_URL}/dashboard/kpis`),
                 axios.get(`${API_URL}/dashboard/data`),
-                axios.get(`${API_URL}/decision/alerts`) // Fetch all alerts to show history
+                axios.get(`${API_URL}/decision/alerts`)
             ]);
             setKpis(kpiRes.data);
             triggerPulse('kpis');
@@ -147,8 +153,8 @@ function App() {
 
     const handleRunCycle = async () => {
         setLoading(true);
-        const cycleDate = new Date();
-        cycleDate.setDate(cycleDate.getDate() + dayCounter - 1);
+        const cycleDate = new Date(simulationStartDate);
+        cycleDate.setDate(simulationStartDate.getDate() + dayCounter - 1);
         const cycleDateISO = cycleDate.toISOString();
 
         try {
@@ -163,12 +169,10 @@ function App() {
             await new Promise(res => setTimeout(res, 1500));
 
             showNotification('🧠 Running Forecast & Price Optimization Engine...', 'info');
-            await new Promise(res => setTimeout(res, 1500));
             // eslint-disable-next-line
-            const response = await axios.post(`${API_URL}/decision/run-daily-process`);
+            const response = await axios.post(`${API_URL}/decision/run-daily-process`, { date: cycleDateISO });
             
             showNotification(`✅ Cycle for Day ${dayCounter} Complete!`, 'success');
-            await new Promise(res => setTimeout(res, 1500));
             await fetchData(); 
             triggerPulse('alerts');
             setDayCounter(prevDay => prevDay + 1);

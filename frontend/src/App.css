@@ -12,6 +12,18 @@
   --markdown-purple: #6a1b9a;
 }
 
+.reason-cell {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.reason-cell ul {
+  margin: 0;
+  padding-left: 15px;
+}
+.reason-cell li {
+  margin-bottom: 3px;
+}
+
 body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: var(--bg-color); color: var(--text-primary); margin: 0; }
 
 .App-header { background-color: var(--card-bg); color: var(--walmart-blue); padding: 1rem 2rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: left; border-bottom: 1px solid var(--border-color); }
