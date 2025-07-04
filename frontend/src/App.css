@@ -1,69 +1,79 @@
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  background-color: #f0f2f5;
-  color: #333;
-  margin: 0;
+:root {
+  --walmart-blue: #0071ce;
+  --walmart-yellow: #ffc120;
+  --bg-color: #f4f6f8;
+  --card-bg: #ffffff;
+  --text-primary: #1d1d1f;
+  --text-secondary: #5a5a5a;
+  --border-color: #e5e5e5;
+  --success-green: #2e7d32;
+  --warning-orange: #ed6c02;
+  --info-blue: #0288d1;
+  --markdown-purple: #6a1b9a;
 }
-.App { text-align: center; }
-.App-header {
-  background-color: #0071ce; /* Walmart Blue */
-  color: white;
-  padding: 1rem;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-main {
-  padding: 1.5rem;
-  max-width: 1400px;
-  margin: auto;
-}
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: repeat(12, 1fr);
-  gap: 1.5rem;
-}
-.grid-card {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-  text-align: left;
-}
-.grid-card h2 {
-  margin-top: 0;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 0.75rem;
-  margin-bottom: 1rem;
-  font-size: 1.25rem;
-  color: #0071ce;
-}
-.kpi-container { grid-column: 1 / -1; display: flex; gap: 1.5rem; justify-content: space-around; }
-.kpi-card { flex: 1; text-align: center; }
-.kpi-card .value { font-size: 2.5rem; font-weight: 600; color: #1a1a1a; }
-.kpi-card .label { font-size: 1rem; color: #666; }
-.controls-card { grid-column: 1 / 5; }
-.weather-card { grid-column: 5 / 9; }
+
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: var(--bg-color); color: var(--text-primary); margin: 0; }
+
+.App-header { background-color: var(--card-bg); color: var(--walmart-blue); padding: 1rem 2rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: left; border-bottom: 1px solid var(--border-color); }
+.App-header h1 { margin: 0; font-size: 1.5rem; }
+.App-header span { font-size: 0.9rem; color: var(--text-secondary); }
+
+main { padding: 2rem; max-width: 1600px; margin: auto; position: relative; }
+.dashboard-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 1.5rem; }
+
+.grid-card { background: var(--card-bg); padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); transition: all 0.3s ease-in-out; }
+.grid-card.pulsate { animation: pulsate-animation 1s ease-in-out; }
+@keyframes pulsate-animation { 0% { transform: scale(1); } 50% { transform: scale(1.01); } 100% { transform: scale(1); } }
+.grid-card h2 { margin-top: 0; font-size: 1.1rem; font-weight: 600; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; margin-bottom: 1rem; }
+
+/* KPI Cards */
+.kpi-section { grid-column: 1 / -1; }
+.kpi-section h2 { font-size: 1.4rem; border: none; text-align: center; margin-bottom: 1.5rem; }
+.kpi-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; }
+.kpi-card .value { font-size: 2.25rem; font-weight: 700; color: var(--text-primary); line-height: 1; transition: color 0.5s ease; }
+.kpi-card .label { font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.5rem; }
+.kpi-card { text-align: center; }
+
+/* Control Panel */
+.controls-card { grid-column: 1 / -1; }
+.button-primary { background-color: var(--walmart-blue); color: white; border: none; padding: 12px 20px; font-size: 1rem; font-weight: 600; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+.button-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0, 113, 206, 0.2); }
+
+/* Data Tables & Alert Highlighting */
 .alerts-card { grid-column: 1 / -1; }
 .inventory-card { grid-column: 1 / 7; }
 .sales-card { grid-column: 7 / -1; }
 table { width: 100%; border-collapse: collapse; }
-th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #ddd; }
-th { background-color: #f8f9fa; font-weight: 600; }
-tbody tr:hover { background-color: #f1f1f1; }
-.button-primary {
-  background-color: #ffc120; /* Walmart Yellow */
-  color: #333;
-  border: none;
-  padding: 12px 20px;
-  font-size: 1rem;
-  font-weight: bold;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-  width: 100%;
-  margin-bottom: 1rem;
+th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; }
+th { font-weight: 600; color: var(--text-secondary); background-color: #fafafa; }
+tbody tr { transition: background-color 0.4s ease; }
+.alert-row-understock-reorder { background-color: rgba(237, 108, 2, 0.1); }
+.alert-row-overstock-reduce-price { background-color: rgba(106, 27, 154, 0.1); }
+.alert-row-overstock-hold { background-color: rgba(90, 90, 90, 0.05); }
+.alert-row-understock-reorder:hover, .alert-row-overstock-reduce-price:hover, .alert-row-overstock-hold:hover { background-color: rgba(0, 113, 206, 0.1); }
+td strong { font-weight: 600; }
+
+/* --- NOTIFICATION BANNER --- */
+.notification-banner {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  border-radius: 8px;
+  color: white;
+  font-weight: 600;
+  z-index: 1000;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+  animation: fade-in-out 3s forwards;
 }
-.button-primary:disabled { background-color: #e0e0e0; cursor: not-allowed; }
-.button-primary:hover:not(:disabled) { background-color: #f5b914; }
-.message { margin-top: 1rem; padding: 1rem; border-radius: 5px; }
-.message.success { background-color: #e6f4ea; color: #34a853; }
-.message.error { background-color: #fce8e6; color: #ea4335; }
+.notification-banner.info { background-color: var(--info-blue); }
+.notification-banner.success { background-color: var(--success-green); }
+.notification-banner.error { background-color: #d32f2f; }
+
+@keyframes fade-in-out {
+  0% { opacity: 0; transform: translate(-50%, -20px); }
+  15% { opacity: 1; transform: translate(-50%, 0); }
+  85% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -20px); }
+}

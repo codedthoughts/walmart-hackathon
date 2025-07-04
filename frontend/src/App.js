@@ -5,130 +5,177 @@ import './App.css';
 const API_URL = 'http://localhost:5001/api';
 
 // --- Reusable Components ---
-const KpiCard = ({ value, label }) => (
+const KpiCard = ({ value, label, icon }) => (
     <div className="grid-card kpi-card">
-        <div className="value">{value}</div>
+        <div className="value">{icon} {value}</div>
         <div className="label">{label}</div>
     </div>
 );
 
-const ControlsCard = ({ onRunCycle, onRestock, loading, message, messageType }) => (
+const NotificationBanner = ({ message, type }) => {
+    if (!message) return null;
+    return <div className={`notification-banner ${type}`}>{message}</div>;
+};
+
+const ControlsCard = ({ onRunCycle, loading, dayCounter }) => (
     <div className="grid-card controls-card">
-        <h2>System Controls</h2>
         <button className="button-primary" onClick={onRunCycle} disabled={loading}>
-            {loading ? 'Processing...' : '▶️ Run Full Daily Cycle'}
+            {loading ? `Simulating Day ${dayCounter}...` : `▶️ Run Cycle for Day ${dayCounter}`}
         </button>
-        <button className="button-primary" onClick={onRestock} disabled={loading}>
-            📦 Receive Emergency Stock (PROD002)
-        </button>
-        {message && <p className={`message ${messageType}`}>{message}</p>}
     </div>
 );
 
+// --- Helper Functions for Alert Rendering ---
+const getAlertClassName = (alert) => `alert-row-${alert.type.toLowerCase()}-${alert.action.toLowerCase()}`;
 
-// <<< FIX IS HERE: A new helper function to safely render the alert text >>>
 const getActionText = (alert) => {
     switch (alert.action) {
         case 'reorder':
-            // Safely access recommended_qty
             return `Reorder ${alert.details.recommended_qty || 0} units`;
         case 'reduce-price':
-            // Safely access new_price and use toFixed only if it exists
             const price = alert.details.new_price;
             return `Markdown to $${typeof price === 'number' ? price.toFixed(2) : 'N/A'}`;
         case 'hold':
-            // Display a message for the 'hold' action
-            return `Hold Stock (Not expiring soon)`;
+            return 'Hold Stock (Not expiring soon)';
         default:
-            // Fallback for any unknown action type
             return 'No action specified';
     }
 };
 
-const AlertsCard = ({ alerts }) => (
-    <div className="grid-card alerts-card">
-        <h2>Actionable Alerts</h2>
+// --- Data Table Components ---
+const AlertsCard = ({ alerts, pulsate }) => {
+    const groupedAlerts = alerts.reduce((acc, alert) => {
+        const date = new Date(alert.date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        if (!acc[date]) {
+            acc[date] = [];
+        }
+        acc[date].push(alert);
+        return acc;
+    }, {});
+
+    const sortedDates = Object.keys(groupedAlerts).sort((a, b) => new Date(b) - new Date(a));
+
+    return (
+        <div className={`grid-card alerts-card ${pulsate === 'alerts' ? 'pulsate' : ''}`}>
+            <h2>Actionable Alerts</h2>
+            {sortedDates.length > 0 ? sortedDates.map(date => (
+                <div key={date}>
+                    <h3 style={{ padding: '10px 0', backgroundColor: '#f0f2f5', textAlign: 'center', borderRadius: '4px', margin: '1rem 0' }}>
+                        Alerts Generated for {date}
+                    </h3>
+                    <table>
+                        <thead><tr><th>Product</th><th>Type</th><th>Recommended Action</th><th>Details</th></tr></thead>
+                        <tbody>
+                            {groupedAlerts[date].map(alert => (
+                                <tr key={alert._id} className={getAlertClassName(alert)}>
+                                    <td>{alert.product_id}</td>
+                                    <td style={{ fontWeight: 'bold' }}>{alert.type.toUpperCase()}</td>
+                                    <td><strong>{getActionText(alert)}</strong></td>
+                                    <td>Forecast: {alert.details.forecasted_demand}, Stock: {alert.details.current_stock}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )) : <p>No alerts generated yet. Run a daily cycle.</p>}
+        </div>
+    );
+};
+
+const InventoryCard = ({ inventory, pulsate }) => (
+     <div className={`grid-card inventory-card ${pulsate === 'inventory' ? 'pulsate' : ''}`}>
+        <h2>Current Store Inventory</h2>
         <table>
-            <thead><tr><th>Product</th><th>Type</th><th>Recommended Action</th><th>Details</th></tr></thead>
+            <thead><tr><th>Product ID</th><th>Quantity</th><th>Current Price</th></tr></thead>
             <tbody>
-                {alerts.length > 0 ? alerts.map(alert => (
-                    <tr key={alert._id}>
-                        <td>{alert.product_id}</td>
-                        <td style={{ color: alert.type === 'UNDERSTOCK' ? '#f57c00' : '#1e88e5', fontWeight: 'bold' }}>{alert.type}</td>
-                        {/* Use the new safe helper function here */}
-                        <td><strong>{getActionText(alert)}</strong></td>
-                        <td>Forecast: {alert.details.forecasted_demand}, Stock: {alert.details.current_stock}</td>
-                    </tr>
-                )) : <tr><td colSpan="4">No alerts generated yet. Run a daily cycle.</td></tr>}
+                {inventory.map(item => <tr key={item._id}><td>{item.product_id}</td><td>{item.quantity}</td><td>${(item.current_price || 0).toFixed(2)}</td></tr>)}
             </tbody>
         </table>
     </div>
 );
 
+const SalesCard = ({ sales, pulsate }) => (
+    <div className={`grid-card sales-card ${pulsate === 'sales' ? 'pulsate' : ''}`}>
+        <h2>Today's Simulated Sales</h2>
+        <table>
+            <thead><tr><th>Product ID</th><th>Units Sold</th><th>Price at Sale</th></tr></thead>
+            <tbody>
+                {sales.length > 0 ? sales.map(item => <tr key={item._id}><td>{item.product_id}</td><td>{item.units_sold}</td><td>${(item.price_at_sale || 0).toFixed(2)}</td></tr>) : <tr><td colSpan="3">No sales recorded for today yet.</td></tr>}
+            </tbody>
+        </table>
+    </div>
+);
+
+
 // --- Main App Component ---
 function App() {
-    const [kpis, setKpis] = useState({ loss_avoided: 0, markdown_profit: 0, reorders_triggered: 0 });
+    const [kpis, setKpis] = useState({ loss_avoided: 0, markdown_profit: 0, reorders_triggered: 0, waste_avoided_kg: 0, co2_saved_kg: 0 });
     const [alerts, setAlerts] = useState([]);
     const [dashboardData, setDashboardData] = useState({ inventory: [], todays_sales: [], latest_weather: null });
     const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState('');
-    const [messageType, setMessageType] = useState('success');
+    const [notification, setNotification] = useState({ message: '', type: 'info', key: 0 });
+    const [pulsate, setPulsate] = useState('');
+    const [dayCounter, setDayCounter] = useState(1);
+
+    const showNotification = (message, type = 'info', duration = 3000) => {
+        setNotification(prev => ({ message, type, key: prev.key + 1 }));
+    };
+    
+    const triggerPulse = (cardName) => {
+        setPulsate(cardName);
+        setTimeout(() => setPulsate(''), 1000);
+    };
 
     const fetchData = async () => {
         try {
             const [kpiRes, dataRes, alertsRes] = await Promise.all([
                 axios.get(`${API_URL}/dashboard/kpis`),
                 axios.get(`${API_URL}/dashboard/data`),
-                axios.get(`${API_URL}/decision/alerts?status=pending`) // Fetch only pending alerts
+                axios.get(`${API_URL}/decision/alerts`) // Fetch all alerts to show history
             ]);
             setKpis(kpiRes.data);
+            triggerPulse('kpis');
             setDashboardData(dataRes.data);
             setAlerts(alertsRes.data);
-        } catch (error) {
-            console.error("Failed to fetch initial data", error);
-            setMessage('Failed to load dashboard data. Is the server running?');
-            setMessageType('error');
+        } catch (error) { 
+            console.error("Failed to fetch data", error);
+            showNotification('Error: Could not fetch data from server.', 'error', 5000);
         }
     };
-
-    useEffect(() => {
-        fetchData();
-    }, []);
+    // eslint-disable-next-line
+    useEffect(() => { fetchData(); }, []);
 
     const handleRunCycle = async () => {
         setLoading(true);
-        const todayISO = new Date().toISOString();
+        const cycleDate = new Date();
+        cycleDate.setDate(cycleDate.getDate() + dayCounter - 1);
+        const cycleDateISO = cycleDate.toISOString();
+
         try {
-            setMessage('Step 1/3: Fetching today\'s weather...'); setMessageType('success');
-            await axios.post(`${API_URL}/sim/weather`, { date: todayISO });
+            showNotification(`Simulating Day ${dayCounter}: Ingesting Weather Data...`, 'info');
+            await axios.post(`${API_URL}/sim/weather`, { date: cycleDateISO });
+            await new Promise(res => setTimeout(res, 1500)); 
 
-            setMessage('Step 2/3: Simulating today\'s sales...');
-            await axios.post(`${API_URL}/sim/sales`, { date: todayISO });
+            showNotification(`Simulating Day ${dayCounter}: Processing Customer Sales...`, 'info');
+            await axios.post(`${API_URL}/sim/sales`, { date: cycleDateISO });
+            triggerPulse('sales');
+            triggerPulse('inventory');
+            await new Promise(res => setTimeout(res, 1500));
 
-            setMessage('Step 3/3: Running forecast & decision engine...');
+            showNotification('🧠 Running Forecast & Price Optimization Engine...', 'info');
+            await new Promise(res => setTimeout(res, 1500));
+            // eslint-disable-next-line
             const response = await axios.post(`${API_URL}/decision/run-daily-process`);
+            
+            showNotification(`✅ Cycle for Day ${dayCounter} Complete!`, 'success');
+            await new Promise(res => setTimeout(res, 1500));
+            await fetchData(); 
+            triggerPulse('alerts');
+            setDayCounter(prevDay => prevDay + 1);
 
-            setMessage(`✅ Cycle Complete: ${response.data.message}`);
-            await fetchData(); // Refresh all data on dashboard
         } catch (error) {
             const errorMsg = error.response ? error.response.data.message : "An unexpected error occurred.";
-            setMessage(`❌ Error: ${errorMsg}`);
-            setMessageType('error');
-        } finally {
-            setLoading(false);
-        }
-    };
-    
-    const handleRestock = async () => {
-        setLoading(true);
-        try {
-            setMessage('Receiving large stock for PROD002 to demonstrate overstock...');
-            setMessageType('success');
-            await axios.post(`${API_URL}/sim/provider-supply`, { product_id: 'PROD002', quantity: 200 });
-            await fetchData(); // Refresh inventory table
-            setMessage('✅ Emergency stock received for PROD002. Run the daily cycle to see overstock alerts.');
-        } catch (error) {
-             setMessage('❌ Failed to receive stock.'); setMessageType('error');
+            showNotification(`❌ Error: ${errorMsg}`, 'error', 5000);
         } finally {
             setLoading(false);
         }
@@ -136,44 +183,34 @@ function App() {
 
     return (
         <div className="App">
-            <header className="App-header"><h1>Dynamic Inventory & Pricing Optimization</h1></header>
+            <NotificationBanner key={notification.key} message={notification.message} type={notification.type} />
+            <header className="App-header">
+                <h1>Store-Level Optimization Dashboard</h1>
+                <span>A lightweight, plug-and-play engine for profit & sustainability</span>
+            </header>
             <main>
                 <div className="dashboard-grid">
-                    <div className="kpi-container">
-                        <KpiCard value={`$${kpis.loss_avoided.toFixed(2)}`} label="Spoilage Loss Avoided" />
-                        <KpiCard value={`$${kpis.markdown_profit.toFixed(2)}`} label="Profit from Dynamic Pricing" />
-                        <KpiCard value={kpis.reorders_triggered} label="Automated Reorders Triggered" />
+                    <div className={`grid-card kpi-section ${pulsate === 'kpis' ? 'pulsate' : ''}`}>
+                        <h2>Key Performance Indicators (Cumulative)</h2>
+                        <div className="kpi-container">
+                            <KpiCard value={`$${kpis.loss_avoided.toFixed(2)}`} label="Spoilage Loss Avoided" icon="🛡️" />
+                            <KpiCard value={`$${kpis.markdown_profit.toFixed(2)}`} label="Dynamic Pricing Profit" icon="📈" />
+                            <KpiCard value={kpis.reorders_triggered} label="Pending Reorders" icon="🔄" />
+                        </div>
                     </div>
-                    <ControlsCard onRunCycle={handleRunCycle} onRestock={handleRestock} loading={loading} message={message} messageType={messageType} />
-                    <div className="grid-card weather-card">
-                        <h2>Today's Conditions</h2>
-                        {dashboardData.latest_weather ? (
-                            <div>
-                                <p><strong>Condition:</strong> {dashboardData.latest_weather.weather_condition}</p>
-                                <p><strong>Temperature:</strong> {dashboardData.latest_weather.temperature_c}°C</p>
-                                <p><strong>Precipitation:</strong> {dashboardData.latest_weather.precipitation_mm}mm</p>
-                            </div>
-                        ) : <p>No weather data available.</p>}
+                    <div className={`grid-card kpi-section ${pulsate === 'kpis' ? 'pulsate' : ''}`}>
+                         <h2>Sustainability Impact (Cumulative)</h2>
+                        <div className="kpi-container">
+                             <KpiCard value={`${kpis.waste_avoided_kg.toFixed(2)} kg`} label="Food Waste Avoided" icon="♻️" />
+                             <KpiCard value={`${kpis.co2_saved_kg.toFixed(2)} kg`} label="CO₂ Equivalent Saved" icon="🌍" />
+                        </div>
                     </div>
-                    <AlertsCard alerts={alerts} />
-                    <div className="grid-card inventory-card">
-                        <h2>Current Inventory</h2>
-                        <table>
-                             <thead><tr><th>Product</th><th>Quantity</th><th>Price</th></tr></thead>
-                             <tbody>
-                                {dashboardData.inventory.map(item => <tr key={item._id}><td>{item.product_id}</td><td>{item.quantity}</td><td>${item.current_price.toFixed(2)}</td></tr>)}
-                             </tbody>
-                        </table>
-                    </div>
-                     <div className="grid-card sales-card">
-                        <h2>Today's Sales</h2>
-                         <table>
-                             <thead><tr><th>Product</th><th>Units Sold</th><th>Price</th></tr></thead>
-                             <tbody>
-                                {dashboardData.todays_sales.length > 0 ? dashboardData.todays_sales.map(item => <tr key={item._id}><td>{item.product_id}</td><td>{item.units_sold}</td><td>${item.price_at_sale.toFixed(2)}</td></tr>) : <tr><td colSpan="3">No sales recorded for today yet.</td></tr>}
-                             </tbody>
-                        </table>
-                    </div>
+                    
+                    <ControlsCard onRunCycle={handleRunCycle} loading={loading} dayCounter={dayCounter} />
+                    
+                    <AlertsCard alerts={alerts} pulsate={pulsate} />
+                    <InventoryCard inventory={dashboardData.inventory} pulsate={pulsate} />
+                    <SalesCard sales={dashboardData.todays_sales} pulsate={pulsate} />
                 </div>
             </main>
         </div>

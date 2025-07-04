@@ -7,6 +7,8 @@ const schema = new mongoose.Schema({
     cost_price: Number,
     is_perishable: Boolean,
     shelf_life_days: Number,
+    weight_kg: { type: Number, default: 0.5 },
+    co2_factor: { type: Number, default: 2.5 },
     unit: String,
     image_url: String,
 }, { timestamps: true });

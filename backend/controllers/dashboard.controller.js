@@ -8,7 +8,6 @@ const mongoose = require('mongoose');
 // GET /api/dashboard/kpis
 exports.getKpis = async (req, res) => {
     try {
-        // 1. Spoilage Loss Avoided & Profit from Dynamic Pricing
         const markdownSales = await Sale.aggregate([
             { $lookup: { from: 'products', localField: 'product_id', foreignField: 'product_id', as: 'product_info' } },
             { $unwind: '$product_info' },
@@ -16,19 +15,21 @@ exports.getKpis = async (req, res) => {
             { $group: {
                 _id: null,
                 total_loss_avoided: { $sum: { $multiply: ['$units_sold', '$product_info.cost_price'] } },
-                total_markdown_profit: { $sum: { $multiply: ['$units_sold', { $subtract: ['$price_at_sale', '$product_info.cost_price'] }] } }
+                total_markdown_profit: { $sum: { $multiply: ['$units_sold', { $subtract: ['$price_at_sale', '$product_info.cost_price'] }] } },
+                // --- NEW KPI CALCULATIONS ---
+                waste_avoided_kg: { $sum: { $multiply: ['$units_sold', '$product_info.weight_kg'] } },
+                co2_saved_kg: { $sum: { $multiply: ['$units_sold', { $multiply: ['$product_info.weight_kg', '$product_info.co2_factor'] }] } }
             }}
         ]);
-
-        // 2. Total Reorders Triggered
-        const reordersTriggered = await Alert.countDocuments({ action: 'reorder' });
+        const reordersTriggered = await Alert.countDocuments({ action: 'reorder', status: 'pending' }); // Only count pending
 
         const kpis = {
-            loss_avoided: markdownSales.length > 0 ? markdownSales[0].total_loss_avoided : 0,
-            markdown_profit: markdownSales.length > 0 ? markdownSales[0].total_markdown_profit : 0,
+            loss_avoided: markdownSales[0]?.total_loss_avoided || 0,
+            markdown_profit: markdownSales[0]?.total_markdown_profit || 0,
+            waste_avoided_kg: markdownSales[0]?.waste_avoided_kg || 0,
+            co2_saved_kg: markdownSales[0]?.co2_saved_kg || 0,
             reorders_triggered: reordersTriggered
         };
-
         res.status(200).json(kpis);
     } catch (error) {
         res.status(500).json({ message: 'Error fetching KPIs', error: error.message });
