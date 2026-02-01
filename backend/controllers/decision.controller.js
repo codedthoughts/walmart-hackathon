@@ -19,7 +19,10 @@ exports.runDailyProcess = async (req, res) => {
         // --- 1. Data Ingestion for ML Model ---
         const threeDaysAgo = new Date(today);
         threeDaysAgo.setDate(today.getDate() - 3);
-        const salesData = await Sale.find({ date: { $gte: threeDaysAgo, $lt: today } }).lean();
+        const salesData = await Sale.find(
+    { date: { $gte: threeDaysAgo, $lt: today } },
+    { _id: 0, product_id: 1, date: 1, units_sold: 1, price_at_sale: 1 }
+).lean();
         const weatherData = await Weather.findOne({ date: today }).lean(); 
         const products = await Product.find().lean();
         
@@ -29,6 +32,10 @@ exports.runDailyProcess = async (req, res) => {
 
         // --- 2. Call Forecasting Model ---
         console.log("Calling ML service for forecasting...");
+        console.log(`Sales data count: ${salesData.length}`);
+        if (salesData.length > 0) {
+            console.log(`Sample sales record:`, JSON.stringify(salesData[0]));
+        }
         const forecastResponse = await axios.post(process.env.ML_SERVICE_URL, {
             sales_history: salesData,
             weather_forecast: weatherData,

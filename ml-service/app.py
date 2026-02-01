@@ -32,7 +32,13 @@ def create_features_for_tomorrow(sales_history_df, weather_forecast, product_id)
         # Add error handling for visibility
         raise ValueError(f"Could not parse date from weather_forecast: {weather_forecast.get('date')}. Error: {e}")
 
-    product_sales = sales_history_df[sales_history_df['product_id'] == product_id].copy()
+    # Handle empty DataFrame or missing product_id column
+    if sales_history_df.empty:
+        product_sales = pd.DataFrame(columns=['date', 'units_sold'])
+    elif 'product_id' not in sales_history_df.columns:
+        raise KeyError(f"'product_id' column not found in sales_history. Available columns: {list(sales_history_df.columns)}")
+    else:
+        product_sales = sales_history_df[sales_history_df['product_id'] == product_id].copy()
     product_sales.sort_values('date', inplace=True)
     
     features = {}
@@ -80,8 +86,16 @@ def forecast():
             return jsonify({"error": "Missing data: 'sales_history', 'weather_forecast', or 'products' not provided"}), 400
 
         sales_history_df = pd.DataFrame(sales_history)
-        # Handle empty sales history gracefully
+        
+        # Validate sales_history DataFrame structure
         if not sales_history_df.empty:
+            required_columns = ['product_id', 'date', 'units_sold']
+            missing_columns = [col for col in required_columns if col not in sales_history_df.columns]
+            if missing_columns:
+                return jsonify({
+                    "error": f"Sales history data is missing required columns: {missing_columns}",
+                    "details": f"Received columns: {list(sales_history_df.columns)}"
+                }), 400
             sales_history_df['date'] = pd.to_datetime(sales_history_df['date'])
 
         predictions = []

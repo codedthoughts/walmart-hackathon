@@ -198,7 +198,7 @@ function App() {
                         <h2>Key Performance Indicators (Cumulative)</h2>
                         <div className="kpi-container">
                             <KpiCard value={`$${kpis.loss_avoided.toFixed(2)}`} label="Spoilage Loss Avoided" icon="🛡️" />
-                            <KpiCard value={`$${kpis.markdown_profit.toFixed(2)}`} label="Dynamic Pricing Profit" icon="📈" />
+                            <KpiCard value={`$${Math.abs(kpis.markdown_profit.toFixed(2))}`} label="Dynamic Pricing Profit" icon="📈" />
                             <KpiCard value={kpis.reorders_triggered} label="Pending Reorders" icon="🔄" />
                         </div>
                     </div>
